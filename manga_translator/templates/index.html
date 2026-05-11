@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>漫画 Translator — Agente de Traducción</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+JP:wght@400;700&family=JetBrains+Mono:wght@400;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ══════════════════════════════════════════
+     VARIABLES & RESET
+  ══════════════════════════════════════════ */
+  :root {
+    --ink:       #0a0a0f;
+    --panel:     #111118;
+    --surface:   #1a1a26;
+    --border:    #2a2a3a;
+    --accent:    #e8c84a;    /* amarillo manga */
+    --accent2:   #e84a4a;    /* rojo SFX */
+    --text:      #e8e8f0;
+    --muted:     #6b6b8a;
+    --success:   #4ae89a;
+    --mono:      'JetBrains Mono', monospace;
+    --display:   'Bebas Neue', cursive;
+    --body:      'Manrope', sans-serif;
+    --radius:    6px;
+    --shadow:    0 4px 24px rgba(0,0,0,0.5);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--body);
+    background: var(--ink);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Patrón de semitono manga en el fondo */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(circle, #ffffff08 1px, transparent 1px);
+    background-size: 20px 20px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ══════════════════════════════════════════
+     HEADER
+  ══════════════════════════════════════════ */
+  header {
+    position: relative;
+    z-index: 10;
+    background: var(--panel);
+    border-bottom: 2px solid var(--accent);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    box-shadow: 0 2px 20px rgba(232,200,74,0.1);
+  }
+
+  .logo {
+    font-family: var(--display);
+    font-size: 2rem;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    text-shadow: 2px 2px 0 var(--accent2);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .logo-jp {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 1rem;
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  .header-badges {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .badge {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    padding: 3px 8px;
+    border-radius: 3px;
+    border: 1px solid;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .badge-nvidia { border-color: #76b900; color: #76b900; }
+  .badge-claude { border-color: #c084fc; color: #c084fc; }
+  .badge-mangadex { border-color: var(--accent); color: var(--accent); }
+
+  /* ══════════════════════════════════════════
+     MAIN LAYOUT — 3 columnas
+  ══════════════════════════════════════════ */
+  .app-layout {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    grid-template-rows: auto 1fr;
+    min-height: calc(100vh - 64px);
+  }
+  .panel-search {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 64px);
+    position: sticky;
+    top: 64px;
+    overflow: hidden;
+  }
+
+  /* ── Centro: visor de imagen ── */
+  .panel-viewer {
+    display: flex;
+    flex-direction: column;
+    background: var(--ink);
+    min-height: calc(100vh - 64px);
+  }
+
+  
+
+  /* ══════════════════════════════════════════
+     PANEL SEARCH
+  ══════════════════════════════════════════ */
+  .panel-header {
+    padding: 1rem 1.2rem 0.8rem;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .panel-title {
+    font-family: var(--display);
+    font-size: 1.1rem;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    margin-bottom: 0.7rem;
+  }
+
+  .search-bar {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  input[type="text"], input[type="password"] {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--body);
+    font-size: 0.85rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius);
+    outline: none;
+    width: 100%;
+    transition: border-color 0.2s;
+  }
+  input:focus { border-color: var(--accent); }
+  input::placeholder { color: var(--muted); }
+
+  .btn {
+    cursor: pointer;
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--body);
+    font-weight: 600;
+    font-size: 0.82rem;
+    padding: 0.5rem 1rem;
+    transition: all 0.15s;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--ink);
+  }
+  .btn-primary:hover { background: #f0d060; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-danger {
+    background: var(--accent2);
+    color: #fff;
+  }
+  .btn-danger:hover { background: #f06060; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-success {
+    background: var(--success);
+    color: var(--ink);
+  }
+  .btn-success:hover { background: #60f0aa; }
+
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+
+  /* Scroll custom */
+  .scroll-area {
+    overflow-y: auto;
+    flex: 1;
+  }
+  .scroll-area::-webkit-scrollbar { width: 4px; }
+  .scroll-area::-webkit-scrollbar-track { background: transparent; }
+  .scroll-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .scroll-area::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* Manga cards */
+  .manga-grid {
+    padding: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .manga-card {
+    display: flex;
+    gap: 0.6rem;
+    padding: 0.6rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.15s;
+    background: var(--surface);
+  }
+  .manga-card:hover { border-color: var(--accent); background: #1e1e2e; }
+  .manga-card.active { border-color: var(--accent); background: #222230; }
+
+  .manga-cover {
+    width: 48px;
+    height: 68px;
+    object-fit: cover;
+    border-radius: 3px;
+    flex-shrink: 0;
+    background: var(--border);
+  }
+
+  .manga-info { flex: 1; min-width: 0; }
+  .manga-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.3;
+    margin-bottom: 0.2rem;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .manga-desc {
+    font-size: 0.72rem;
+    color: var(--muted);
+    line-height: 1.4;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .manga-status {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    color: var(--success);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.3rem;
+  }
+
+  /* Chapter list */
+  .chapter-section {
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+    max-height: 220px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chapter-list {
+    overflow-y: auto;
+    flex: 1;
+  }
+  .chapter-list::-webkit-scrollbar { width: 3px; }
+  .chapter-list::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .chapter-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.55rem 1.2rem;
+    border-bottom: 1px solid #1e1e28;
+    cursor: pointer;
+    transition: background 0.1s;
+    font-size: 0.8rem;
+  }
+  .chapter-item:hover { background: var(--surface); }
+  .chapter-item.active { background: #1e1e32; color: var(--accent); }
+
+  .chapter-num {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    font-weight: 600;
+    flex-shrink: 0;
+    margin-right: 0.5rem;
+  }
+  .chapter-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--muted);
+  }
+  .chapter-pages {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--muted);
+    flex-shrink: 0;
+    margin-left: 0.5rem;
+  }
+
+  /* ══════════════════════════════════════════
+     PANEL VIEWER — centro
+  ══════════════════════════════════════════ */
+  .viewer-toolbar {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 0.7rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+
+  .viewer-info {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    flex: 1;
+  }
+
+  .page-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .page-indicator {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--accent);
+    padding: 0 0.5rem;
+    min-width: 60px;
+    text-align: center;
+  }
+
+  .viewer-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 1.5rem;
+    gap: 1rem;
+    overflow-y: auto;
+  }
+
+  .image-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    width: 100%;
+    max-width: 900px;
+  }
+
+  .image-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .image-panel-label {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.7rem;
+    font-family: var(--mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .image-panel-label .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+  }
+  .image-panel-label.translated .dot { background: var(--success); }
+
+  .manga-page-img {
+    width: 100%;
+    display: block;
+  }
+
+  /* Estado vacío */
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--muted);
+    max-width: 400px;
+    margin: auto;
+  }
+
+  .empty-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.4;
+  }
+
+  .empty-state h3 {
+    font-family: var(--display);
+    font-size: 1.5rem;
+    letter-spacing: 0.1em;
+    color: var(--text);
+    margin-bottom: 0.5rem;
+  }
+
+  .empty-state p {
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+
+  /* Loading overlay */
+  .loading-bar {
+    display: none;
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    text-align: center;
+    max-width: 500px;
+  }
+
+  .loading-bar.active { display: block; }
+
+  .loading-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    text-align: left;
+  }
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+    transition: all 0.3s;
+  }
+  .step.active { color: var(--accent); background: #1e1e10; }
+  .step.done   { color: var(--success); }
+
+  .step-icon { font-size: 1rem; flex-shrink: 0; }
+
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Config modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 2rem;
+    width: 420px;
+    max-width: 90vw;
+    box-shadow: var(--shadow);
+    animation: modal-in 0.2s ease;
+  }
+  @keyframes modal-in { from { opacity:0; transform: scale(0.95) translateY(10px); } }
+
+  .modal h2 {
+    font-family: var(--display);
+    font-size: 1.5rem;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    margin-bottom: 1.2rem;
+  }
+
+  .form-group {
+    margin-bottom: 1rem;
+  }
+
+  .form-label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 0.4rem;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .form-hint {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 0.3rem;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+    justify-content: flex-end;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.8rem 1.2rem;
+    font-size: 0.82rem;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: var(--shadow);
+    transform: translateY(10px);
+    opacity: 0;
+    transition: all 0.25s;
+    max-width: 320px;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { border-color: var(--success); }
+  .toast.error   { border-color: var(--accent2); }
+
+  /* Scrollbar global */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* Responsive basic */
+  
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header>
+  <div class="logo">
+    漫画 TRANSLATOR
+    <span class="logo-jp">マンガ翻訳エージェント</span>
+  </div>
+</header>
+
+<!-- ═══ MAIN ═══ -->
+<div class="app-layout">
+
+  <!-- ── Panel izquierdo: búsqueda + capítulos ── -->
+  <aside class="panel-search">
+
+    <div class="panel-header">
+      <div class="panel-title">BUSCAR MANGA</div>
+      <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="Título en inglés..." 
+               onkeydown="if(event.key==='Enter') searchManga()">
+        <button class="btn btn-primary" onclick="searchManga()">↗</button>
+      </div>
+    </div>
+
+    <div class="scroll-area" id="mangaResults">
+      <div style="padding:2rem 1rem; color:var(--muted); font-size:0.82rem; text-align:center;">
+        Busca un manga para comenzar
+      </div>
+    </div>
+
+    <div class="chapter-section" id="chapterSection" style="display:none;">
+      <div class="panel-header" style="border-top:1px solid var(--border);">
+        <div class="panel-title" style="font-size:0.9rem;">CAPÍTULOS <span id="mangaTitleLabel" style="color:var(--muted);font-size:0.7rem;font-family:var(--mono);"></span></div>
+      </div>
+      <div class="chapter-list" id="chapterList"></div>
+    </div>
+
+  </aside>
+
+  <!-- ── Centro: visor ── -->
+  <main class="panel-viewer">
+
+    <div class="viewer-toolbar">
+      <div class="viewer-info" id="viewerInfo">Selecciona un manga → capítulo → página</div>
+      <div class="page-nav" id="pageNav" style="display:none;">
+        <button class="btn btn-ghost" onclick="changePage(-1)" style="padding:4px 8px;">◀</button>
+        <span class="page-indicator" id="pageIndicator">1 / 1</span>
+        <button class="btn btn-ghost" onclick="changePage(1)" style="padding:4px 8px;">▶</button>
+      </div>
+      <button class="btn btn-primary" id="translateBtn" onclick="translateCurrentPage()" 
+              style="display:none;" disabled>
+        🔍 Traducir página
+      </button>
+      <button class="btn btn-success" id="downloadBtn" onclick="downloadTranslated()"
+              style="display:none;">
+        ⬇ Descargar
+      </button>
+    </div>
+
+    <div class="viewer-body" id="viewerBody">
+      <div class="empty-state">
+        <div class="empty-icon">📖</div>
+        <h3>MANGA TRANSLATOR</h3>
+        <p>Busca un manga, selecciona un capítulo y una página para comenzar la traducción automática.</p>
+      </div>
+    </div>
+
+  </main>
+
+</div>
+
+<!-- ═══ TOAST ═══ -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════ */
+const state = {
+  selectedMangaId: null,
+  selectedMangaTitle: '',
+  selectedChapterId: null,
+  pages: [],
+  currentPageIndex: 0,
+  bubbles: [],         // [{id, original_text, translation, bbox, confidence}]
+  hasTranslation: false,
+};
+
+/* ══════════════════════════════════════════════
+   UTILS
+══════════════════════════════════════════════ */
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = (type === 'success' ? '✓ ' : '✗ ') + msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function setLoading(steps_active) {
+  const body = document.getElementById('viewerBody');
+
+  if (!steps_active) {
+    return; // restaurado desde fuera
+  }
+
+  const steps = [
+    {id:'s1', icon:'⬇', label:'Descargando página de MangaDex...'},
+    {id:'s2', icon:'🔍', label:'Detectando texto con Nemotron OCR...'},
+    {id:'s3', icon:'🌐', label:'Traduciendo con Claude AI...'},
+    {id:'s4', icon:'🖊', label:'Renderizando imagen traducida...'},
+  ];
+
+  body.innerHTML = `
+    <div class="loading-bar active">
+      <div style="font-family:var(--display);font-size:1.2rem;letter-spacing:0.1em;color:var(--accent);">
+        PROCESANDO PÁGINA
+      </div>
+      <div class="loading-steps">
+        ${steps.map(s => `
+          <div class="step" id="${s.id}">
+            <span class="step-icon">${s.icon}</span>
+            <span>${s.label}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+
+  // Simular progreso visual
+  let current = 0;
+  const ids = steps.map(s => s.id);
+  const interval = setInterval(() => {
+    if (current > 0) document.getElementById(ids[current-1])?.classList.replace('active','done');
+    if (current < ids.length) {
+      document.getElementById(ids[current])?.classList.add('active');
+      current++;
+    } else {
+      clearInterval(interval);
+    }
+  }, 900);
+
+  return interval;
+}
+
+/* ══════════════════════════════════════════════
+   CONFIG
+══════════════════════════════════════════════ */
+function openConfig() {
+  document.getElementById('configModal').classList.add('open');
+}
+function closeConfig() {
+  document.getElementById('configModal').classList.remove('open');
+}
+async function saveConfig() {
+  const nvidia = document.getElementById('nvidiaKey').value.trim();
+  if (!nvidia) { closeConfig(); return; }
+
+  const resp = await fetch('/api/config', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ nvidia_key: nvidia })
+  });
+  const data = await resp.json();
+  if (data.ok) {
+    toast('API key guardada correctamente');
+    closeConfig();
+  }
+}
+
+/* ══════════════════════════════════════════════
+   BÚSQUEDA MANGA
+══════════════════════════════════════════════ */
+async function searchManga() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q) return;
+
+  const resultsEl = document.getElementById('mangaResults');
+  resultsEl.innerHTML = `<div style="padding:1.5rem;color:var(--muted);font-size:0.82rem;text-align:center;">
+    <div class="spinner" style="margin:0 auto 0.5rem;"></div>Buscando...
+  </div>`;
+
+  try {
+    const resp = await fetch(`/api/manga/search?q=${encodeURIComponent(q)}`);
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+
+    if (!data.results.length) {
+      resultsEl.innerHTML = `<div style="padding:1.5rem;color:var(--muted);font-size:0.82rem;text-align:center;">Sin resultados para "${q}"</div>`;
+      return;
+    }
+
+    resultsEl.innerHTML = `<div class="manga-grid">${data.results.map(m => `
+      <div class="manga-card" id="mc-${m.id}" onclick="selectManga('${m.id}','${m.title.replace(/'/g,"\\'")}')">
+        ${m.cover_url 
+          ? `<img class="manga-cover" src="${m.cover_url}" alt="" loading="lazy" onerror="this.style.display='none'">`
+          : `<div class="manga-cover" style="display:flex;align-items:center;justify-content:center;font-size:1.5rem;">📚</div>`}
+        <div class="manga-info">
+          <div class="manga-title">${m.title}</div>
+          <div class="manga-desc">${m.description || 'Sin descripción'}</div>
+          <div class="manga-status">${m.status || ''} ${m.year ? '· '+m.year : ''}</div>
+        </div>
+      </div>`).join('')}</div>`;
+
+  } catch (e) {
+    resultsEl.innerHTML = `<div style="padding:1.5rem;color:var(--accent2);font-size:0.82rem;text-align:center;">Error: ${e.message}</div>`;
+  }
+}
+
+/* ══════════════════════════════════════════════
+   SELECCIONAR MANGA → CAPÍTULOS
+══════════════════════════════════════════════ */
+async function selectManga(id, title) {
+  // highlight card
+  document.querySelectorAll('.manga-card').forEach(c => c.classList.remove('active'));
+  document.getElementById(`mc-${id}`)?.classList.add('active');
+
+  state.selectedMangaId = id;
+  state.selectedMangaTitle = title;
+
+  document.getElementById('mangaTitleLabel').textContent = title.slice(0, 20);
+  document.getElementById('chapterSection').style.display = 'flex';
+  document.getElementById('chapterSection').style.flexDirection = 'column';
+
+  const listEl = document.getElementById('chapterList');
+  listEl.innerHTML = `<div style="padding:1rem;color:var(--muted);font-size:0.8rem;text-align:center;">
+    <div class="spinner" style="margin:0 auto 0.5rem;"></div>Cargando...
+  </div>`;
+
+  try {
+    const resp = await fetch(`/api/manga/${id}/chapters`);
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+
+    if (!data.chapters.length) {
+      listEl.innerHTML = `<div style="padding:1rem;color:var(--muted);font-size:0.8rem;text-align:center;">Sin capítulos en inglés</div>`;
+      return;
+    }
+
+    listEl.innerHTML = data.chapters.map(ch => `
+      <div class="chapter-item" id="ch-${ch.id}" onclick="selectChapter('${ch.id}','${ch.chapter}')">
+        <span class="chapter-num">CH.${ch.chapter}</span>
+        <span class="chapter-title">${ch.title}</span>
+        <span class="chapter-pages">${ch.pages}p</span>
+      </div>`).join('');
+
+  } catch (e) {
+    listEl.innerHTML = `<div style="padding:1rem;color:var(--accent2);font-size:0.8rem;">${e.message}</div>`;
+  }
+}
+
+/* ══════════════════════════════════════════════
+   SELECCIONAR CAPÍTULO → PÁGINAS
+══════════════════════════════════════════════ */
+async function selectChapter(id, num) {
+  document.querySelectorAll('.chapter-item').forEach(c => c.classList.remove('active'));
+  document.getElementById(`ch-${id}`)?.classList.add('active');
+
+  state.selectedChapterId = id;
+  state.currentPageIndex = 0;
+  state.hasTranslation = false;
+
+  document.getElementById('viewerInfo').textContent = `Capítulo ${num} · Cargando páginas...`;
+
+  try {
+    const resp = await fetch(`/api/chapter/${id}/pages`);
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+
+    state.pages = data.pages;
+    document.getElementById('viewerInfo').textContent =
+      `${state.selectedMangaTitle} · Cap. ${num} · ${data.total} páginas`;
+
+    updatePageNav();
+    showCurrentPagePreview();
+
+    document.getElementById('pageNav').style.display = 'flex';
+    document.getElementById('translateBtn').style.display = 'inline-flex';
+    document.getElementById('translateBtn').disabled = false;
+    document.getElementById('downloadBtn').style.display = 'none';
+
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+function updatePageNav() {
+  document.getElementById('pageIndicator').textContent =
+    `${state.currentPageIndex + 1} / ${state.pages.length}`;
+}
+
+function changePage(delta) {
+  const newIdx = state.currentPageIndex + delta;
+  if (newIdx < 0 || newIdx >= state.pages.length) return;
+  state.currentPageIndex = newIdx;
+  state.hasTranslation = false;
+  updatePageNav();
+  showCurrentPagePreview();
+}
+
+function showCurrentPagePreview() {
+  const url = state.pages[state.currentPageIndex];
+  if (!url) return;
+
+  document.getElementById('viewerBody').innerHTML = `
+    <div style="max-width:480px;width:100%;">
+      <div class="image-panel">
+        <div class="image-panel-label"><span class="dot"></span> ORIGINAL (EN)</div>
+        <img class="manga-page-img" src="${url}" alt="Página" 
+             onerror="this.alt='Error cargando imagen'">
+      </div>
+      <div style="text-align:center;margin-top:1rem;color:var(--muted);font-size:0.8rem;">
+        Presiona "Traducir página" para iniciar el análisis OCR + traducción
+      </div>
+    </div>`;
+}
+
+/* ══════════════════════════════════════════════
+   TRADUCIR PÁGINA — PIPELINE PRINCIPAL
+══════════════════════════════════════════════ */
+async function translateCurrentPage() {
+  const url = state.pages[state.currentPageIndex];
+  if (!url) return;
+
+  document.getElementById('translateBtn').disabled = true;
+  const interval = setLoading(true);
+
+  try {
+    const resp = await fetch('/api/translate-page', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        page_url: url,
+        manga_title: state.selectedMangaTitle
+      })
+    });
+    clearInterval(interval);
+
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+
+    state.bubbles = data.bubbles;
+    state.hasTranslation = true;
+
+    // Mostrar comparativa
+    document.getElementById('viewerBody').innerHTML = `
+      <div class="image-compare" style="max-width:100%;">
+        <div class="image-panel">
+          <div class="image-panel-label"><span class="dot"></span> ORIGINAL (EN)</div>
+          <img class="manga-page-img" src="data:image/jpeg;base64,${data.original_b64}" alt="Original">
+        </div>
+        <div class="image-panel">
+          <div class="image-panel-label translated"><span class="dot"></span> TRADUCIDO (ES)</div>
+          <img class="manga-page-img" id="translatedImg" src="data:image/jpeg;base64,${data.translated_b64}" alt="Traducido">
+        </div>
+      </div>`;
+
+    document.getElementById('downloadBtn').style.display = 'inline-flex';
+    toast(`${data.bubbles.length} globos detectados y traducidos`);
+
+  } catch (e) {
+    clearInterval(interval);
+    document.getElementById('viewerBody').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">⚠</div>
+        <h3>ERROR</h3>
+        <p>${e.message}</p>
+      </div>`;
+    toast(e.message, 'error');
+  }
+
+  document.getElementById('translateBtn').disabled = false;
+}
+</script>
+</body>
+</html>
