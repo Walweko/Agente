@@ -124,19 +124,6 @@ Si ves `⚠️ NVIDIA_API_KEY vacía`, revisa el paso 5.
 
 ---
 
-## Solución de problemas
-
-| Síntoma | Causa probable | Solución |
-|---|---|---|
-| `⚠️ NVIDIA_API_KEY vacía` al arrancar | `.env` no encontrado o mal nombrado | Asegúrate de que el archivo se llama `.env` (con punto) y está junto a `App.py` |
-| OCR devuelve textos de prueba falsos | API key no cargada | Ver arriba |
-| `UNAUTHENTICATED` en el traductor | Key expirada o revocada | Genera una nueva key en build.nvidia.com |
-| `missing argument: api_key` | Versión mezclada de `App.py` | Descarga de nuevo el `App.py` de este repositorio |
-| Imágenes no cargan | Sin conexión a internet | Verifica tu conexión |
-| `403` en páginas de manga | CDN de MangaDex cambió | Abre un issue en el repositorio |
-
----
-
 ## Cómo funciona
 
 ```
