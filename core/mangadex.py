@@ -88,8 +88,7 @@ def get_chapter_pages(chapter_id: str) -> list[str]:
 
     base_url = data["baseUrl"]
     chapter_hash = data["chapter"]["hash"]
-    pages = data["chapter"]["data"]  # alta calidad
-
+    pages = data["chapter"]["data"]
     urls = [f"{base_url}/data/{chapter_hash}/{page}" for page in pages]
     return urls
 
