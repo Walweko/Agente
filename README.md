@@ -14,11 +14,11 @@ Aplicación web local que busca manga en **MangaDex**, extrae el texto de los gl
 
 ## Instalación
 
-### 1. Clona o descarga el proyecto
+### 1. Clona 
 
 ```bash
 git clone https://github.com/tu-usuario/manga-translator.git
-cd manga-translator
+
 ```
 
 O descarga el ZIP y extráelo en una carpeta.
